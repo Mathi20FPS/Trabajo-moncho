@@ -5,58 +5,56 @@ export default class HelloWorldScene extends Phaser.Scene {
   }
 
   preload() {
-    // Fondos e imágenes necesarias
     this.load.image("Cielo", "./public/assets/Cielo.webp");
     this.load.image("platform", "./public/assets/platform.png");
     this.load.image("Ninja", "./public/assets/Ninja.png");
-
-    // Próximos ítems (cargamos estos por ahora)
     this.load.image("square", "./public/assets/square.png");
     this.load.image("triangle", "./public/assets/triangle.png");
     this.load.image("diamond", "./public/assets/diamond.png");
   }
 
   create() {
-    // Fondo escalado
     this.add.image(400, 300, "Cielo").setDisplaySize(800, 600);
 
-    // Grupo de plataformas
     this.platforms = this.physics.add.staticGroup();
     this.platforms.create(400, 580, "platform").setScale(2).refreshBody();
+    this.platforms.create(200, 400, "platform").setScale(0.5).refreshBody();
+    this.platforms.create(600, 300, "platform").setScale(0.5).refreshBody();
 
-    // Jugador
-    this.player = this.physics.add.sprite(400, 500, "Ninja");
-    this.player.setScale(0.1);
+    this.player = this.physics.add.sprite(400, 500, "Ninja").setScale(0.1);
+    this.player.setBounce(0.2);
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.platforms);
 
-    // Controles
     this.cursors = this.input.keyboard.createCursorKeys();
 
-    // Grupo de ítems
     this.items = this.physics.add.group();
 
-    // Puntaje
     this.score = 0;
-    this.scoreText = this.add.text(16, 16, 'Puntos: 0', {
-      fontSize: '24px',
-      fill: '#000',
+    this.scoreText = this.add.text(16, 16, "Puntos: 0", {
+      fontSize: "24px",
+      fill: "#000",
     });
 
-    // Temporizador
-    this.timer = 30; // Segundos
-    this.timerText = this.add.text(600, 16, 'Tiempo: 30', {
-      fontSize: '24px',
-      fill: '#000',
+    // Contadores de figuras
+    this.collected = {
+      square: 0,
+      triangle: 0,
+      diamond: 0,
+    };
+
+    this.timer = 30;
+    this.timerText = this.add.text(600, 16, "Tiempo: 30", {
+      fontSize: "24px",
+      fill: "#000",
     });
 
-    // Evento para el temporizador
     this.timerEvent = this.time.addEvent({
       delay: 1000,
       callback: () => {
         if (!this.gameOver) {
           this.timer--;
-          this.timerText.setText('Tiempo: ' + this.timer);
+          this.timerText.setText("Tiempo: " + this.timer);
           if (this.timer <= 0) {
             this.loseGame("¡Tiempo agotado!");
           }
@@ -66,19 +64,15 @@ export default class HelloWorldScene extends Phaser.Scene {
       loop: true,
     });
 
-    // Evento para el spawn de ítems
     this.spawnLoop = this.time.addEvent({
-      delay: 500, // 0.5 segundos
+      delay: 500,
       callback: this.spawnItem,
       callbackScope: this,
       loop: true,
     });
 
-    // Game Over flag
     this.gameOver = false;
-
-    // Tecla para reiniciar el juego
-    this.restartKey = this.input.keyboard.addKey('R');
+    this.restartKey = this.input.keyboard.addKey("R");
   }
 
   spawnItem() {
@@ -94,14 +88,14 @@ export default class HelloWorldScene extends Phaser.Scene {
     item.setVelocity(Phaser.Math.Between(-100, 100), 200);
     item.setScale(0.4);
 
-    // Asignar puntaje basado en el tipo de ítem
     let scoreValue = 0;
     switch (itemType) {
       case "square": scoreValue = 10; break;
       case "triangle": scoreValue = 15; break;
       case "diamond": scoreValue = 20; break;
     }
-    item.setData("score", scoreValue); // Guardar puntaje en el ítem
+    item.setData("score", scoreValue);
+    item.setData("type", itemType); // importante para contar
 
     this.physics.add.collider(this.player, item, this.collectItem, null, this);
     this.physics.add.collider(item, this.platforms, this.itemBounce, null, this);
@@ -109,28 +103,35 @@ export default class HelloWorldScene extends Phaser.Scene {
 
   collectItem(player, item) {
     const scoreValue = item.getData("score") || 0;
-    this.score += scoreValue;
-    this.scoreText.setText('Puntos: ' + this.score);
+    const type = item.getData("type");
 
+    this.score += scoreValue;
+    this.scoreText.setText("Puntos: " + this.score);
     item.disableBody(true, true);
 
-    if (this.score >= 100) {
+    // Aumentar contador de tipo
+    if (type && this.collected[type] !== undefined) {
+      this.collected[type]++;
+    }
+
+    // Verificar si se ganan 100 puntos o se juntaron 2 de cada tipo
+    if (
+      this.score >= 100 ||
+      (this.collected.square >= 2 &&
+        this.collected.triangle >= 2 &&
+        this.collected.diamond >= 2)
+    ) {
       this.winGame();
     }
   }
 
   itemBounce(item, platform) {
-    // Obtener el puntaje actual del ítem
     let currentScore = item.getData("score") || 0;
-
-    // Descontar 5 puntos por rebote
     currentScore -= 5;
 
     if (currentScore <= 0) {
-      // Si el puntaje llega a 0 o menos, eliminar el ítem
       item.disableBody(true, true);
     } else {
-      // Si aún tiene puntaje, actualizarlo
       item.setData("score", currentScore);
     }
   }
@@ -168,7 +169,6 @@ export default class HelloWorldScene extends Phaser.Scene {
   }
 
   update() {
-    // Movimiento del jugador
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-160);
     } else if (this.cursors.right.isDown) {
@@ -177,12 +177,16 @@ export default class HelloWorldScene extends Phaser.Scene {
       this.player.setVelocityX(0);
     }
 
-    // Reiniciar el juego si el jugador presiona 'R' después de perder o ganar
+    if (this.cursors.up.isDown && this.player.body.touching.down) {
+      this.player.setVelocityY(-350);
+    }
+
     if (this.gameOver && Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.scene.restart();
     }
   }
 }
+
 
 
 
