@@ -5,149 +5,177 @@ export default class HelloWorldScene extends Phaser.Scene {
   }
 
   preload() {
-    // Fondos e imágenes necesarias
     this.load.image("Cielo", "./public/assets/Cielo.webp");
     this.load.image("platform", "./public/assets/platform.png");
     this.load.image("Ninja", "./public/assets/Ninja.png");
-
-    // Próximos ítems (cargamos estos por ahora)
     this.load.image("square", "./public/assets/square.png");
     this.load.image("triangle", "./public/assets/triangle.png");
     this.load.image("diamond", "./public/assets/diamond.png");
+    this.load.image("X", "./public/assets/X.png");
   }
 
   create() {
-    // Fondo escalado
     this.add.image(400, 300, "Cielo").setDisplaySize(800, 600);
-  
-    // Grupo de plataformas
+
+    // Creación de plataformas
     this.platforms = this.physics.add.staticGroup();
     this.platforms.create(400, 580, "platform").setScale(2).refreshBody();
-  
-    // Jugador
-    this.player = this.physics.add.sprite(400, 500, "Ninja");
-    this.player.setScale(0.1);
+    this.platforms.create(200, 400, "platform").setScale(0.5).refreshBody();
+    this.platforms.create(600, 300, "platform").setScale(0.5).refreshBody();
+
+    // Jugador (Ninja)
+    this.player = this.physics.add.sprite(400, 500, "Ninja").setScale(0.1);
+    this.player.setBounce(0.2);
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.platforms);
-  
+
     // Controles
     this.cursors = this.input.keyboard.createCursorKeys();
-  
-    // Grupo de ítems
     this.items = this.physics.add.group();
-  
-    // Contadores de ítems recolectados
-    this.collectedSquares = 0;
-    this.collectedTriangles = 0;
-    this.collectedDiamonds = 0;
-  
-    // Temporizador para hacer caer ítems
-    this.time.addEvent({
+
+    // Puntuación
+    this.score = 0;
+    this.scoreText = this.add.text(16, 16, "Puntos: 0", {
+      fontSize: "24px",
+      fill: "#000",
+    });
+
+    // Objetos recolectados
+    this.collected = {
+      square: 0,
+      triangle: 0,
+      diamond: 0,
+    };
+
+    // Temporizador
+    this.timer = 30;
+    this.timerText = this.add.text(600, 16, "Tiempo: 30", {
+      fontSize: "24px",
+      fill: "#000",
+    });
+
+    // Evento para el temporizador
+    this.timerEvent = this.time.addEvent({
       delay: 1000,
+      callback: () => {
+        if (!this.gameOver) {
+          this.timer--;
+          this.timerText.setText("Tiempo: " + this.timer);
+          if (this.timer <= 0) {
+            this.loseGame("¡Tiempo agotado!");
+          }
+        }
+      },
+      callbackScope: this,
+      loop: true,
+    });
+
+    // Evento para generar objetos
+    this.spawnLoop = this.time.addEvent({
+      delay: 500,
       callback: this.spawnItem,
       callbackScope: this,
       loop: true,
     });
+
+    // Estado del juego
+    this.gameOver = false;
+    this.restartKey = this.input.keyboard.addKey("R");
   }
-  
-    
-  
+
   spawnItem() {
-    // Generar figura aleatoria
-    const items = ["square", "triangle", "diamond"];
+    if (this.gameOver) return;
+
+    const items = ["square", "triangle", "diamond", "X"];
     const itemType = Phaser.Math.RND.pick(items);
-
-    // Establecer posición aleatoria en el eje X (entre 50 y 750)
     const xPos = Phaser.Math.RND.between(50, 750);
-    const item = this.items.create(xPos, 0, itemType); // Generar item
+    const item = this.items.create(xPos, 0, itemType);
 
-    // Aplicar física para que el ítem caiga
     item.setBounce(1);
     item.setCollideWorldBounds(true);
-    item.setVelocity(Phaser.Math.Between(-100, 100), 200); // Velocidad de caída
+    item.setVelocity(Phaser.Math.Between(-100, 100), 200);
 
-    
-    // Hacer que el ítem sea más pequeño
-   item.setScale(0.4); // Ajusta el valor para cambiar el tamaño
+    // Usamos tamaño fijo para todos los ítems
+    item.setDisplaySize(30, 30); // Ajusta esto al tamaño que prefieras
 
-    // Asignar valor de puntaje
     let scoreValue = 0;
     switch (itemType) {
-      case "square":
-        scoreValue = 10;
-        break;
-      case "triangle":
-        scoreValue = 15;
-        break;
-      case "diamond":
-        scoreValue = 20;
-        break;
+      case "square": scoreValue = 10; break;
+      case "triangle": scoreValue = 15; break;
+      case "diamond": scoreValue = 20; break;
+      case "X": scoreValue = -10; break; // Resta puntos
     }
-    item.setData("score", scoreValue);
 
-    // Hacer que el jugador recoja el ítem
-    this.physics.add.collider(this.player, item, this.collectItem, null, this);
+    item.setData("score", scoreValue);
+    item.setData("type", itemType);
+
+    this.physics.add.overlap(this.player, item, this.collectItem, null, this);
     this.physics.add.collider(item, this.platforms, this.itemBounce, null, this);
   }
 
   collectItem(player, item) {
-    // Contar el tipo recolectado
-    if (item.texture.key === 'square') {
-      this.collectedSquares++;
-    } else if (item.texture.key === 'triangle') {
-      this.collectedTriangles++;
-    } else if (item.texture.key === 'diamond') {
-      this.collectedDiamonds++;
-    }
-  
+    const scoreValue = item.getData("score") || 0;
+    const type = item.getData("type");
+
+    this.score += scoreValue;
+    this.scoreText.setText("Puntos: " + this.score);
     item.disableBody(true, true);
-  
-    // Condición de victoria: 2 iguales
+
+    if (type && this.collected[type] !== undefined) {
+      this.collected[type]++;
+    }
+
     if (
-      this.collectedSquares >= 2 ||
-      this.collectedTriangles >= 2 ||
-      this.collectedDiamonds >= 2
+      this.score >= 100 ||
+      (this.collected.square >= 2 &&
+        this.collected.triangle >= 2 &&
+        this.collected.diamond >= 2)
     ) {
       this.winGame();
     }
+
+    // Pierde si el puntaje es menor a cero
+    if (this.score < 0) {
+      this.loseGame("¡Perdiste puntos!");
+    }
   }
-  
-  
 
   itemBounce(item, platform) {
-    // Cuando el ítem toca el suelo, desaparece
-    item.disableBody(true, true); // Esto hace que el ítem se desactive completamente (lo hace desaparecer)
+    let currentScore = item.getData("score") || 0;
+    currentScore -= 5;
+
+    if (currentScore <= 0) {
+      item.disableBody(true, true);
+    } else {
+      item.setData("score", currentScore);
+    }
   }
-  
-  
 
   winGame() {
+    let reason = this.score >= 100
+    ? "Alcanzaste 100 puntos"
+    : "Recolectaste 2 figuras de cada tipo";
+  
+  this.scene.start("FondoFin", {
+    result: "¡GANASTE!",
+    score: this.score,
+    reason: reason
+  });
+  }
+  loseGame(message) {
+    if (this.gameOver) return;
+    this.gameOver = true;
     this.physics.pause();
-  
-    this.add.rectangle(400, 300, 400, 200, 0x000000, 0.7).setOrigin(0.5);
-  
-    this.add.text(400, 300, "¡GANASTE!", {
-      fontSize: "48px",
-      fill: "#00FF00",
-      fontFamily: "Arial",
-      stroke: "#000",
-      strokeThickness: 4,
-    }).setOrigin(0.5);
-  }
-  
+    this.spawnLoop.remove();
 
-  calculateScore() {
-    // Calcular la puntuación total
-    let totalScore = 0;
-    totalScore += this.collectedItems.square * 10;
-    totalScore += this.collectedItems.triangle * 15;
-    totalScore += this.collectedItems.diamond * 20;
-    return totalScore;
+    // Llamar a la escena de fin de juego y pasar los datos
+    this.scene.start("FondoFin", {
+      result: message,
+      score: this.score,
+    });
   }
 
-  
   update() {
-    // Movimiento del jugador
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-160);
     } else if (this.cursors.right.isDown) {
@@ -156,6 +184,8 @@ export default class HelloWorldScene extends Phaser.Scene {
       this.player.setVelocityX(0);
     }
 
-    
+    if (this.cursors.up.isDown && this.player.body.touching.down) {
+      this.player.setVelocityY(-350);
+    }
   }
 }
