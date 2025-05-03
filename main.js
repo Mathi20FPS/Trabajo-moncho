@@ -1,5 +1,7 @@
 import MenuScene from "./scenes/MenuScene.js";
 import HelloWorldScene from "./scenes/HelloWorldScene.js";
+import FondoFinScene from "./scenes/FondoFinScene.js";
+
 
 const config = {
   type: Phaser.AUTO,
@@ -16,7 +18,7 @@ const config = {
       debug: false,
     },
   },
-  scene: [MenuScene, HelloWorldScene], // Primero el menú, luego el juego
+  scene: [MenuScene, HelloWorldScene, FondoFinScene], // Primero el menú, luego el juego
 };
 
 window.game = new Phaser.Game(config);

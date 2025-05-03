@@ -1,5 +1,5 @@
 // URL to explain PHASER scene: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scene/
-export default class HelloWorldScene extends Phaser.Scene { 
+export default class HelloWorldScene extends Phaser.Scene {
   constructor() {
     super("TP-Ninja-Moncho");
   }
@@ -17,37 +17,44 @@ export default class HelloWorldScene extends Phaser.Scene {
   create() {
     this.add.image(400, 300, "Cielo").setDisplaySize(800, 600);
 
+    // Creación de plataformas
     this.platforms = this.physics.add.staticGroup();
     this.platforms.create(400, 580, "platform").setScale(2).refreshBody();
     this.platforms.create(200, 400, "platform").setScale(0.5).refreshBody();
     this.platforms.create(600, 300, "platform").setScale(0.5).refreshBody();
 
+    // Jugador (Ninja)
     this.player = this.physics.add.sprite(400, 500, "Ninja").setScale(0.1);
     this.player.setBounce(0.2);
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.platforms);
 
+    // Controles
     this.cursors = this.input.keyboard.createCursorKeys();
     this.items = this.physics.add.group();
 
+    // Puntuación
     this.score = 0;
     this.scoreText = this.add.text(16, 16, "Puntos: 0", {
       fontSize: "24px",
       fill: "#000",
     });
 
+    // Objetos recolectados
     this.collected = {
       square: 0,
       triangle: 0,
       diamond: 0,
     };
 
+    // Temporizador
     this.timer = 30;
     this.timerText = this.add.text(600, 16, "Tiempo: 30", {
       fontSize: "24px",
       fill: "#000",
     });
 
+    // Evento para el temporizador
     this.timerEvent = this.time.addEvent({
       delay: 1000,
       callback: () => {
@@ -63,6 +70,7 @@ export default class HelloWorldScene extends Phaser.Scene {
       loop: true,
     });
 
+    // Evento para generar objetos
     this.spawnLoop = this.time.addEvent({
       delay: 500,
       callback: this.spawnItem,
@@ -70,36 +78,38 @@ export default class HelloWorldScene extends Phaser.Scene {
       loop: true,
     });
 
+    // Estado del juego
     this.gameOver = false;
     this.restartKey = this.input.keyboard.addKey("R");
   }
+
   spawnItem() {
     if (this.gameOver) return;
-  
+
     const items = ["square", "triangle", "diamond", "X"];
     const itemType = Phaser.Math.RND.pick(items);
     const xPos = Phaser.Math.RND.between(50, 750);
     const item = this.items.create(xPos, 0, itemType);
-  
+
     item.setBounce(1);
     item.setCollideWorldBounds(true);
     item.setVelocity(Phaser.Math.Between(-100, 100), 200);
-  
+
     // Usamos tamaño fijo para todos los ítems
-    item.setDisplaySize(30, 30); // ajustá esto al tamaño que prefieras
-  
+    item.setDisplaySize(30, 30); // Ajusta esto al tamaño que prefieras
+
     let scoreValue = 0;
     switch (itemType) {
       case "square": scoreValue = 10; break;
       case "triangle": scoreValue = 15; break;
       case "diamond": scoreValue = 20; break;
-      case "X": scoreValue = -10; break; // resta puntos
+      case "X": scoreValue = -10; break; // Resta puntos
     }
-  
+
     item.setData("score", scoreValue);
     item.setData("type", itemType);
-  
-    this.physics.add.collider(this.player, item, this.collectItem, null, this);
+
+    this.physics.add.overlap(this.player, item, this.collectItem, null, this);
     this.physics.add.collider(item, this.platforms, this.itemBounce, null, this);
   }
 
@@ -142,35 +152,27 @@ export default class HelloWorldScene extends Phaser.Scene {
   }
 
   winGame() {
-    if (this.gameOver) return;
-    this.gameOver = true;
-    this.physics.pause();
-    this.spawnLoop.remove();
-
-    this.endBox = this.add.rectangle(400, 300, 400, 200, 0x000000, 0.7).setOrigin(0.5);
-    this.endText = this.add.text(400, 300, "¡GANASTE!", {
-      fontSize: "48px",
-      fill: "#00FF00",
-      fontFamily: "Arial",
-      stroke: "#000",
-      strokeThickness: 4,
-    }).setOrigin(0.5);
+    let reason = this.score >= 100
+    ? "Alcanzaste 100 puntos"
+    : "Recolectaste 2 figuras de cada tipo";
+  
+  this.scene.start("FondoFin", {
+    result: "¡GANASTE!",
+    score: this.score,
+    reason: reason
+  });
   }
-
   loseGame(message) {
     if (this.gameOver) return;
     this.gameOver = true;
     this.physics.pause();
     this.spawnLoop.remove();
 
-    this.endBox = this.add.rectangle(400, 300, 400, 200, 0x000000, 0.7).setOrigin(0.5);
-    this.endText = this.add.text(400, 300, message, {
-      fontSize: "36px",
-      fill: "#FF0000",
-      fontFamily: "Arial",
-      stroke: "#000",
-      strokeThickness: 4,
-    }).setOrigin(0.5);
+    // Llamar a la escena de fin de juego y pasar los datos
+    this.scene.start("FondoFin", {
+      result: message,
+      score: this.score,
+    });
   }
 
   update() {
@@ -185,16 +187,5 @@ export default class HelloWorldScene extends Phaser.Scene {
     if (this.cursors.up.isDown && this.player.body.touching.down) {
       this.player.setVelocityY(-350);
     }
-
-    if (this.gameOver && Phaser.Input.Keyboard.JustDown(this.restartKey)) {
-      this.scene.restart();
-    }
   }
 }
-
-
-
-
-
-
-
