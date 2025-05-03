@@ -1,5 +1,5 @@
 // URL to explain PHASER scene: https://rexrainbow.github.io/phaser3-rex-notes/docs/site/scene/
-export default class HelloWorldScene extends Phaser.Scene {
+export default class HelloWorldScene extends Phaser.Scene { 
   constructor() {
     super("TP-Ninja-Moncho");
   }
@@ -11,6 +11,7 @@ export default class HelloWorldScene extends Phaser.Scene {
     this.load.image("square", "./public/assets/square.png");
     this.load.image("triangle", "./public/assets/triangle.png");
     this.load.image("diamond", "./public/assets/diamond.png");
+    this.load.image("X", "./public/assets/X.png");
   }
 
   create() {
@@ -27,7 +28,6 @@ export default class HelloWorldScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.platforms);
 
     this.cursors = this.input.keyboard.createCursorKeys();
-
     this.items = this.physics.add.group();
 
     this.score = 0;
@@ -36,7 +36,6 @@ export default class HelloWorldScene extends Phaser.Scene {
       fill: "#000",
     });
 
-    // Contadores de figuras
     this.collected = {
       square: 0,
       triangle: 0,
@@ -74,29 +73,32 @@ export default class HelloWorldScene extends Phaser.Scene {
     this.gameOver = false;
     this.restartKey = this.input.keyboard.addKey("R");
   }
-
   spawnItem() {
     if (this.gameOver) return;
-
-    const items = ["square", "triangle", "diamond"];
+  
+    const items = ["square", "triangle", "diamond", "X"];
     const itemType = Phaser.Math.RND.pick(items);
     const xPos = Phaser.Math.RND.between(50, 750);
     const item = this.items.create(xPos, 0, itemType);
-
+  
     item.setBounce(1);
     item.setCollideWorldBounds(true);
     item.setVelocity(Phaser.Math.Between(-100, 100), 200);
-    item.setScale(0.4);
-
+  
+    // Usamos tamaño fijo para todos los ítems
+    item.setDisplaySize(30, 30); // ajustá esto al tamaño que prefieras
+  
     let scoreValue = 0;
     switch (itemType) {
       case "square": scoreValue = 10; break;
       case "triangle": scoreValue = 15; break;
       case "diamond": scoreValue = 20; break;
+      case "X": scoreValue = -10; break; // resta puntos
     }
+  
     item.setData("score", scoreValue);
-    item.setData("type", itemType); // importante para contar
-
+    item.setData("type", itemType);
+  
     this.physics.add.collider(this.player, item, this.collectItem, null, this);
     this.physics.add.collider(item, this.platforms, this.itemBounce, null, this);
   }
@@ -109,12 +111,10 @@ export default class HelloWorldScene extends Phaser.Scene {
     this.scoreText.setText("Puntos: " + this.score);
     item.disableBody(true, true);
 
-    // Aumentar contador de tipo
     if (type && this.collected[type] !== undefined) {
       this.collected[type]++;
     }
 
-    // Verificar si se ganan 100 puntos o se juntaron 2 de cada tipo
     if (
       this.score >= 100 ||
       (this.collected.square >= 2 &&
@@ -122,6 +122,11 @@ export default class HelloWorldScene extends Phaser.Scene {
         this.collected.diamond >= 2)
     ) {
       this.winGame();
+    }
+
+    // Pierde si el puntaje es menor a cero
+    if (this.score < 0) {
+      this.loseGame("¡Perdiste puntos!");
     }
   }
 
