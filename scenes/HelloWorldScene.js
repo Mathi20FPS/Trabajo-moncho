@@ -32,12 +32,25 @@ export default class HelloWorldScene extends Phaser.Scene {
     // Controles
     this.cursors = this.input.keyboard.createCursorKeys();
     this.items = this.physics.add.group();
-
+    
     // Puntuación
     this.score = 0;
     this.scoreText = this.add.text(16, 16, "Puntos: 0", {
       fontSize: "24px",
       fill: "#000",
+    });
+
+    this.squareText = this.add.text(16, 50, "Cuadrados: 0", {
+      fontSize: "20px",
+      fill: "#FF000",
+    });
+    this.triangleText = this.add.text(16, 75, "Triángulos: 0", {
+      fontSize: "20px",
+      fill: "#FF000",
+    });
+    this.diamondText = this.add.text(16, 100, "Rombos: 0", {
+      fontSize: "20px",
+      fill: "#FF000",
     });
 
     // Objetos recolectados
@@ -46,6 +59,8 @@ export default class HelloWorldScene extends Phaser.Scene {
       triangle: 0,
       diamond: 0,
     };
+    
+    
 
     // Temporizador
     this.timer = 30;
@@ -70,6 +85,8 @@ export default class HelloWorldScene extends Phaser.Scene {
       loop: true,
     });
 
+    
+
     // Evento para generar objetos
     this.spawnLoop = this.time.addEvent({
       delay: 500,
@@ -81,6 +98,8 @@ export default class HelloWorldScene extends Phaser.Scene {
     // Estado del juego
     this.gameOver = false;
     this.restartKey = this.input.keyboard.addKey("R");
+
+    
   }
 
   spawnItem() {
@@ -123,6 +142,7 @@ export default class HelloWorldScene extends Phaser.Scene {
 
     if (type && this.collected[type] !== undefined) {
       this.collected[type]++;
+      this.updateCollectedText();
     }
 
     if (
@@ -138,6 +158,13 @@ export default class HelloWorldScene extends Phaser.Scene {
     if (this.score < 0) {
       this.loseGame("¡Perdiste puntos!");
     }
+
+  }
+
+  updateCollectedText() {
+    this.squareText.setText("Cuadrados: " + this.collected.square);
+    this.triangleText.setText("Triángulos: " + this.collected.triangle);
+    this.diamondText.setText("Rombos: " + this.collected.diamond);
   }
 
   itemBounce(item, platform) {
@@ -150,6 +177,7 @@ export default class HelloWorldScene extends Phaser.Scene {
       item.setData("score", currentScore);
     }
   }
+  
 
   winGame() {
     let reason = this.score >= 100
@@ -162,6 +190,7 @@ export default class HelloWorldScene extends Phaser.Scene {
     reason: reason
   });
   }
+
   loseGame(message) {
     if (this.gameOver) return;
     this.gameOver = true;
@@ -187,5 +216,11 @@ export default class HelloWorldScene extends Phaser.Scene {
     if (this.cursors.up.isDown && this.player.body.touching.down) {
       this.player.setVelocityY(-350);
     }
+
+    if(this.cursors.up.isDown && this.player.body.touching.down){
+      this.player.setVelocityY(-350);
+    }
   }
+
+  
 }
